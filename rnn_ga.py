@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import scipy.interpolate as interp
 import matplotlib.pyplot as plt
+import copy
 
 
 def change_matrix_size(matrix, newmat_rows, newmat_cols):
@@ -226,27 +227,27 @@ class RNN:
         self.__fault = None
 
     def insert_gen_w1_row(self, new_row, row_number):
-        self.__gen_w1[row_number, :] = new_row
+        self.__gen_w1[row_number, :] = copy.deepcopy(new_row)
         self.__fault = None
 
     def insert_gen_w2_row(self, new_row, row_number):
-        self.__gen_w2[row_number, :] = new_row
+        self.__gen_w2[row_number, :] = copy.deepcopy(new_row)
         self.__fault = None
 
     def insert_gen_wd_row(self, new_row, lay_number, row_number):
-        self.__gen_wd[lay_number, row_number, :] = new_row
+        self.__gen_wd[lay_number, row_number, :] = copy.deepcopy(new_row)
         self.__fault = None
 
     def insert_gen_w1_col(self, new_col, col_number):
-        self.__gen_w1[:, col_number] = new_col
+        self.__gen_w1[:, col_number] = copy.deepcopy(new_col)
         self.__fault = None
 
     def insert_gen_w2_col(self, new_col, col_number):
-        self.__gen_w2[:, col_number] = new_col
+        self.__gen_w2[:, col_number] = copy.deepcopy(new_col)
         self.__fault = None
 
     def insert_gen_wd_col(self, new_col, lay_number, col_number):
-        self.__gen_wd[lay_number, :, col_number] = new_col
+        self.__gen_wd[lay_number, :, col_number] = copy.deepcopy(new_col)
         self.__fault = None
 
     def set_inputs(self, new_inputs):
@@ -548,9 +549,9 @@ class GeneticAlgorithm:
         self.__genome_size = genome_size
 
         for p in range(population_size):
-            hidden_layer = 5 # int(np.random.uniform(1, max_hid, 1))
+            hidden_layer = 1 # int(np.random.uniform(1, max_hid, 1))
             delays = 1 # int(np.random.uniform(1, max_delays, 1))
-            self.__population['nn{}'.format(p)] = RNNSimple(structure=(network_inputs, hidden_layer, network_outputs),
+            self.__population['nn{}'.format(p)] = RNN(structure=(network_inputs, hidden_layer, network_outputs),
                                                       delays=delays)
 
         for animal in self.__population:
@@ -641,10 +642,10 @@ class GeneticAlgorithm:
             new_population['nn{}'.format(n)] = self.get_animal(animal)
         self.__population = new_population
 
-    def __mutate(self, mutate_animal=5, mutate_number=5):
+    def __mutate(self, mutate_animal=5, mutate_number=1):
         # choose_animal = np.random.choice(list(self.__population.keys()), size=mutate_animal)
         choose_animal = list(self.__population.keys())
-        for animal in choose_animal[2:-1]:
+        for animal in choose_animal:
             for m in range(mutate_number):
                 choose_param = np.random.choice(['w1', 'w2', 'wd'])
                 if choose_param == 'delays':
@@ -666,20 +667,20 @@ class GeneticAlgorithm:
                 if choose_param == 'w1':
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_w1().shape[0], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_w1().shape[1], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 1
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.1
                     self.__population[animal].change_gen_w1(row=row, col=col, val=val)
 
                 elif choose_param == 'w2':
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_w2().shape[0], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_w2().shape[1], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 1
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.1
                     self.__population[animal].change_gen_w2(row=row, col=col, val=val)
 
                 else:
                     lay = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[0], size=1)
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[1], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[2], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 1
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.1
                     self.__population[animal].change_gen_wd(lay=lay, row=row, col=col, val=val)
             self.__population[animal].updates_weights()
 
@@ -688,7 +689,7 @@ class GeneticAlgorithm:
         # animal_names = list(self.__population.keys())
         animal_names = ['nn0', 'nn1']
         for n in range(size_exist_population, self.__population_size, 1):
-            new_animal = RNNSimple(structure=self.get_animal('nn0').get_struct(), delays=1)
+            new_animal = RNN(structure=(1, 5, 1), delays=1)
             new_animal.set_inputs(self.get_inputs())
             new_animal.set_outputs(self.get_outputs())
             new_animal.set_delays(self.__population[np.random.choice(animal_names)].get_delays())
