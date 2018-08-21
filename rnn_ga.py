@@ -118,11 +118,11 @@ class RNN:
             # Calculating output signal
             layer_result = sigmoid(layer_result)
             # Shift of output signal in the delay matrix
-            for i in range(self.__del - 1, -1, -1):
-                if i == 0:
-                    self.__outdel[i, :, 0] = layer_result
-                else:
-                    self.__outdel[i, :, 0] = self.__outdel[i-1, :, 0]
+            # for i in range(self.__del - 1, -1, -1):
+            #     if i == 0:
+            #         self.__outdel[i, :, 0] = layer_result
+            #     else:
+            #         self.__outdel[i, :, 0] = self.__outdel[i-1, :, 0]
             result[d] = layer_result
         return result
 
@@ -134,7 +134,7 @@ class RNN:
         :return: None
         """
         error = target_data - self(input_data)
-        self.__fault = np.sum(np.abs(error / target_data)) / np.prod(error.shape)
+        self.__fault = np.mean(np.abs(error))
     """
     def updates_weights(self):
 
@@ -342,198 +342,6 @@ class RNN:
         pass
 
 
-class RNNSimple:
-    def __init__(self, structure=(1, 1, 1), delays=1):
-        """
-        Recurrent neural network
-        :param structure: (inputs, hidden_neurons, outputs)
-        :param delays: Number of delays
-        :type structure: (int, int, int)
-        :type delays: int
-        """
-        self.__inp = structure[0]
-        self.__hid = structure[1]
-        self.__out = structure[2]
-        self.__del = delays
-        self.__info = {}
-
-        self.__w1 = np.random.uniform(low=-10, high=10, size=[self.__hid, self.__inp + 1])
-        self.__w2 = np.random.uniform(low=-10, high=10, size=[self.__out, self.__hid + 1])
-        self.__wd = np.random.uniform(low=-10, high=10, size=[self.__del, self.__hid, self.__out])
-
-        self.__outdel = np.zeros([self.__del, self.__out, 1])
-        self.__fault = None
-
-    def __call__(self, data):
-        """
-        Calculating RNN
-        :param data: numpy.array with input vectors in the columns and time steps in the rows
-        :return: numpy.array with input vectors in the columns and time steps in the rows
-        """
-        result = np.zeros((len(data), self.__out))
-        for d in range(len(data)):
-            # Weighted sum of inputs with bias
-            layer_result = data[d]
-            layer_result = np.matmul(self.__w1, np.append(layer_result, 1.0))
-            # layer_result = np.matmul(self.__w1, np.append(layer_result, 1.0)) + \
-            #                         np.sum(np.matmul(self.__wd, self.__outdel), 0).transpose()
-            # Calculating hidden layer
-            layer_result = sigmoid(layer_result)
-            # Weighted hidden layer
-            layer_result = np.matmul(self.__w2, np.append(layer_result, 1.0))
-            # Calculating output signal
-            layer_result = sigmoid(layer_result)
-            # Shift of output signal in the delay matrix
-            for i in range(self.__del - 1, -1, -1):
-                if i == 0:
-                    self.__outdel[i, :, 0] = layer_result
-                else:
-                    self.__outdel[i, :, 0] = self.__outdel[i-1, :, 0]
-            result[d] = layer_result
-        return result
-
-    def calculate_fault(self, input_data, target_data):
-        """
-        Calculating of model faults
-        :param input_data:
-        :param target_data:
-        :return: None
-        """
-        error = target_data - self(input_data)
-        self.__fault = np.sum(np.abs(error / target_data)) / np.prod(error.shape)
-
-    def updates_weights(self): return None
-
-    def change_gen_w1(self, row, col, val):
-        """
-        Increase in 'val' times in the 'row' and 'col' matrix coordinate in the weights before hidden layer
-        :param row: Row coordinate of genome matrix
-        :param col: Column coordinate of genome matrix
-        :param val: Value for change
-        :return: None
-        """
-        self.__w1[row, col] += self.__w1[row, col] * val
-        self.__fault = None
-
-    def change_gen_w2(self, row, col, val):
-        """
-        Increase in 'val' times in the 'row' and 'col' matrix coordinate in the weights before output layer
-        :param row: Row coordinate of genome matrix
-        :param col: Column coordinate of genome matrix
-        :param val: Value for change
-        :return: None
-        """
-        self.__w2[row, col] += self.__w2[row, col] * val
-        self.__fault = None
-
-    def change_gen_wd(self, lay, row, col, val):
-        """
-        Increase in 'val' times in the 'lay', 'row' and 'col' matrix coordinate in the weights matrix
-        :param lay: Layer of delay tensor. Each layer is connected with 'lay' output
-        :param row: Row coordinate of genome matrix
-        :param col: Column coordinate of genome matrix
-        :param val: Value for change
-        :return: None
-        """
-        self.__wd[lay, row, col] += self.__wd[lay, row, col] * val
-        self.__fault = None
-
-    def insert_gen_w1_row(self, new_row, row_number):
-        self.__w1[row_number, :] = new_row
-        self.__fault = None
-
-    def insert_gen_w2_row(self, new_row, row_number):
-        self.__w2[row_number, :] = new_row
-        self.__fault = None
-
-    def insert_gen_wd_row(self, new_row, lay_number, row_number):
-        self.__wd[lay_number, row_number, :] = new_row
-        self.__fault = None
-
-    def set_inputs(self, new_inputs):
-        """
-        Change number of inputs and recalculate matrixes
-        :param new_inputs:
-        :return:
-        """
-        self.__inp = new_inputs
-        self.__fault = None
-
-    def set_hid(self, new_hid):
-        """
-        Changing number of hidden neurons
-        :param new_hid: new number of hidden neurons
-        :return: None
-        """
-        self.__hid = new_hid
-        self.__fault = None
-
-    def set_outputs(self, new_outputs):
-        self.__out = new_outputs
-        self.__fault = None
-
-    def set_delays(self, new_delays):
-        """
-        Changing number of delays
-        :param new_delays: new number of hidden neurons
-        :return: None
-        """
-        self.__del = new_delays
-        self.__fault = None
-
-    def set_genome_size(self, new_genome_size):
-        """
-        Change size of neural network genome matrixes
-        :param new_genome_size: New genome size
-        :return: None
-        """
-        pass
-
-    def get_inputs(self): return self.__inp
-
-    def get_hid(self): return self.__hid
-
-    def get_outputs(self): return self.__out
-
-    def get_delays(self): return self.__del
-
-    def get_genome_size(self): return None
-
-    def get_fault(self): return self.__fault
-
-    def get_w1(self): return self.__w1
-
-    def set_w1(self, new_w1):
-        self.__w1 = new_w1
-
-    def get_w2(self): return self.__w2
-
-    def set_w2(self, new_w2):
-        self.__w2 = new_w2
-
-    def get_wd(self): return self.__wd
-
-    def set_wd(self, new_wd):
-        self.__wd = new_wd
-
-    def get_gen_w1(self): return self.__w1
-
-    def get_gen_w2(self): return self.__w2
-
-    def get_gen_wd(self): return self.__wd
-
-    def get_struct(self): return (self.__inp, self.__hid, self.__out)
-
-    def set_gen_w1(self, new_gen_w1):
-        self.__w1 = new_gen_w1
-
-    def set_gen_w2(self, new_gen_w2):
-        self.__w2 = new_gen_w2
-
-    def set_gen_wd(self, new_gen_wd):
-        self.__wd = new_gen_wd
-
-
 class GeneticAlgorithm:
     def __init__(self, input_data, target_data, population_size=20, network_inputs=1, network_outputs=1,
                  max_hid=100, max_delays=10, genome_size=10):
@@ -549,7 +357,7 @@ class GeneticAlgorithm:
         self.__genome_size = genome_size
 
         for p in range(population_size):
-            hidden_layer = 1 # int(np.random.uniform(1, max_hid, 1))
+            hidden_layer = 5 # int(np.random.uniform(1, max_hid, 1))
             delays = 1 # int(np.random.uniform(1, max_delays, 1))
             self.__population['nn{}'.format(p)] = RNN(structure=(network_inputs, hidden_layer, network_outputs),
                                                       delays=delays)
@@ -569,30 +377,35 @@ class GeneticAlgorithm:
         plt.figure()
         plt.ion()
 
-        fig1 = plt.subplot(1, 3, 1)
+        fig1 = plt.subplot(2, 2, 1)
         fig1.grid()
         fig1.set_xlabel('Generations')
         fig1.set_ylabel('Fault')
 
-        fig2 = plt.subplot(1, 3, 2)
+        fig2 = plt.subplot(2, 2, 2)
         fig2.grid()
         fig2.set_xlabel('Number of hidden neurons')
         fig2.set_ylabel('Number of delays in the networks')
         fig2.set_xlim([0, self.__max_hid + 1])
         fig2.set_ylim([0, self.__max_delays + 1])
 
-        fig3 = plt.subplot(1, 3, 3)
+        fig3 = plt.subplot(2, 2, 3)
         fig3.grid()
         fig3.set_xlabel('Network number')
         fig3.set_ylabel('Fault')
         fig3.set_xlim([0, self.__population_size])
         fig3.set_ylim([0, 1])
 
+        fig4 = plt.subplot(2, 2, 4)
+        fig4.grid()
+        fig4.set_xlabel('Time')
+        fig4.set_ylabel('Freq')
+
         for g in range(generations):
+            self.__survive(kill)
             self.__breading()
             self.__mutate(mutate_animal=int(self.__population_size))
             self.calculate_population_faults()
-
 
             faults = self.__get_faults()
 
@@ -616,12 +429,16 @@ class GeneticAlgorithm:
             fig3.set_ylim([0, 1])
             fig3.plot(faults, 'k.')
 
+            fig4.clear()
+            fig4.grid()
+            fig4.set_xlabel('Time')
+            fig4.set_ylabel('Freq')
+            fig4.plot(self.get_animal('nn0')(self.__input_data))
+            fig4.plot(self.__target_data)
+
             plt.pause(0.01)
 
-            self.__survive(kill)
-
             if min(self.__get_faults()) < max_fault:
-
                 break
         plt.ioff()
         plt.show()
@@ -667,20 +484,20 @@ class GeneticAlgorithm:
                 if choose_param == 'w1':
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_w1().shape[0], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_w1().shape[1], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.1
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1)
                     self.__population[animal].change_gen_w1(row=row, col=col, val=val)
 
                 elif choose_param == 'w2':
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_w2().shape[0], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_w2().shape[1], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.1
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1)
                     self.__population[animal].change_gen_w2(row=row, col=col, val=val)
 
                 else:
                     lay = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[0], size=1)
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[1], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[2], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.1
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1)
                     self.__population[animal].change_gen_wd(lay=lay, row=row, col=col, val=val)
             self.__population[animal].updates_weights()
 
@@ -713,7 +530,7 @@ class GeneticAlgorithm:
                         lay_number=lays,
                         row_number=rows
                     )
-            
+            """
             for cols in range(0, self.__genome_size):
                 new_animal.insert_gen_w1_col(
                     new_col=self.__population[np.random.choice(animal_names)].get_gen_w1()[:, cols],
@@ -731,7 +548,7 @@ class GeneticAlgorithm:
                     )
             
             new_animal.updates_weights()
-            """
+
             # new_animal.calculate_fault(self.__input_data, self.__target_data)
             self.__population['nn{}'.format(n)] = new_animal
 
@@ -861,7 +678,12 @@ if __name__ == "__main__":
     freq = Data[0:-1:1000, 2] / 200000.0
     temp = Data[0:-1:1000, 3] / 1000.0
 
-    pop = GeneticAlgorithm(input_data=fuel, target_data=freq, max_hid=20, population_size=30)
+    time = time.reshape(len(time), 1)
+    fuel = fuel.reshape(len(fuel), 1)
+    freq = freq.reshape(len(freq), 1)
+    temp = temp.reshape(len(temp), 1)
+
+    pop = GeneticAlgorithm(input_data=fuel, target_data=freq, max_hid=20, population_size=10)
     pop.live(generations=100000, kill=0.25)
     pop.print_population()
     network = pop.get_animal('nn0')
