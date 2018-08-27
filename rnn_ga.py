@@ -118,11 +118,11 @@ class RNN:
             # Calculating output signal
             layer_result = sigmoid(layer_result)
             # Shift of output signal in the delay matrix
-            # for i in range(self.__del - 1, -1, -1):
-            #     if i == 0:
-            #         self.__outdel[i, :, 0] = layer_result
-            #     else:
-            #         self.__outdel[i, :, 0] = self.__outdel[i-1, :, 0]
+            for i in range(self.__del - 1, -1, -1):
+                if i == 0:
+                    self.__outdel[i, :, 0] = layer_result
+                else:
+                    self.__outdel[i, :, 0] = self.__outdel[i-1, :, 0]
             result[d] = layer_result
         return result
 
@@ -145,7 +145,7 @@ class RNN:
         self.__w2 = change_matrix_size(self.__gen_w2, self.__out, self.__hid + 1)
         self.__wd = change_tensor3d_size(self.__gen_wd, self.__del, self.__hid, self.__out)
         self.__outdel = np.zeros([self.__del, self.__out, 1])
-    """
+        """
 
     def updates_weights(self):
         """
@@ -357,8 +357,8 @@ class GeneticAlgorithm:
         self.__genome_size = genome_size
 
         for p in range(population_size):
-            hidden_layer = 5 # int(np.random.uniform(1, max_hid, 1))
-            delays = 1 # int(np.random.uniform(1, max_delays, 1))
+            hidden_layer = int(np.random.uniform(1, max_hid, 1))
+            delays = int(np.random.uniform(1, max_delays, 1))
             self.__population['nn{}'.format(p)] = RNN(structure=(network_inputs, hidden_layer, network_outputs),
                                                       delays=delays)
 
@@ -404,7 +404,7 @@ class GeneticAlgorithm:
         for g in range(generations):
             self.__survive(kill)
             self.__breading()
-            self.__mutate(mutate_animal=int(self.__population_size))
+            self.__mutate(mutate_animal=int(self.__population_size * (1 - kill)))
             self.calculate_population_faults()
 
             faults = self.__get_faults()
@@ -461,10 +461,10 @@ class GeneticAlgorithm:
 
     def __mutate(self, mutate_animal=5, mutate_number=1):
         # choose_animal = np.random.choice(list(self.__population.keys()), size=mutate_animal)
-        choose_animal = list(self.__population.keys())
+        choose_animal = list(self.__population.keys())[self.__population_size-mutate_animal:]
         for animal in choose_animal:
             for m in range(mutate_number):
-                choose_param = np.random.choice(['w1', 'w2', 'wd'])
+                choose_param = np.random.choice(['delays', 'hidden', 'w1', 'w2', 'wd'])
                 if choose_param == 'delays':
                     new_delays = int(self.__population[animal].get_delays() + np.random.uniform(low=-2, high=2, size=1))
                     if new_delays < 1:
@@ -683,8 +683,8 @@ if __name__ == "__main__":
     freq = freq.reshape(len(freq), 1)
     temp = temp.reshape(len(temp), 1)
 
-    pop = GeneticAlgorithm(input_data=fuel, target_data=freq, max_hid=20, population_size=10)
-    pop.live(generations=100000, kill=0.25)
+    pop = GeneticAlgorithm(input_data=fuel, target_data=freq, max_hid=20, population_size=50)
+    pop.live(generations=100000, kill=0.8)
     pop.print_population()
     network = pop.get_animal('nn0')
     net_result = network(fuel)
