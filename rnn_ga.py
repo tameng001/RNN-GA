@@ -404,7 +404,7 @@ class GeneticAlgorithm:
         for g in range(generations):
             self.__survive(kill)
             self.__breading()
-            self.__mutate(mutate_animal=int(self.__population_size * (1 - kill)))
+            self.__mutate(mutate_animal=int(self.__population_size * (1 - 0)))
             self.calculate_population_faults()
 
             faults = self.__get_faults()
@@ -466,38 +466,38 @@ class GeneticAlgorithm:
             for m in range(mutate_number):
                 choose_param = np.random.choice(['delays', 'hidden', 'w1', 'w2', 'wd'])
                 if choose_param == 'delays':
-                    new_delays = int(self.__population[animal].get_delays() + np.random.uniform(low=-2, high=2, size=1))
+                    new_delays = int(self.__population[animal].get_delays() + np.random.uniform(low=-1, high=1, size=1))
                     if new_delays < 1:
                         new_delays = 1
                     elif new_delays > self.__max_delays:
                         new_delays = self.__max_delays
                     self.__population[animal].set_delays(new_delays)
                
-                if choose_param == 'hidden':
-                    new_hidden = int(self.__population[animal].get_hid() + np.random.uniform(low=-2, high=2, size=1))
+                elif choose_param == 'hidden':
+                    new_hidden = int(self.__population[animal].get_hid() + np.random.uniform(low=-1, high=1, size=1))
                     if new_hidden < 1:
                         new_hidden = 1
                     elif new_hidden > self.__max_hid:
                         new_hidden = self.__max_hid
                     self.__population[animal].set_hid(new_hidden)
 
-                if choose_param == 'w1':
+                elif choose_param == 'w1':
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_w1().shape[0], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_w1().shape[1], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1)
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.5
                     self.__population[animal].change_gen_w1(row=row, col=col, val=val)
 
                 elif choose_param == 'w2':
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_w2().shape[0], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_w2().shape[1], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1)
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.5
                     self.__population[animal].change_gen_w2(row=row, col=col, val=val)
 
                 else:
                     lay = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[0], size=1)
                     row = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[1], size=1)
                     col = np.random.randint(low=0, high=self.__population[animal].get_gen_wd().shape[2], size=1)
-                    val = np.random.uniform(low=-0.1, high=0.1, size=1)
+                    val = np.random.uniform(low=-0.1, high=0.1, size=1) * 0.5
                     self.__population[animal].change_gen_wd(lay=lay, row=row, col=col, val=val)
             self.__population[animal].updates_weights()
 
@@ -511,10 +511,11 @@ class GeneticAlgorithm:
             new_animal.set_outputs(self.get_outputs())
             new_animal.set_delays(self.__population[np.random.choice(animal_names)].get_delays())
             new_animal.set_hid(self.__population[np.random.choice(animal_names)].get_hid())
+            """
             new_animal.set_gen_w1(self.__population[np.random.choice(animal_names)].get_gen_w1())
             new_animal.set_gen_w2(self.__population[np.random.choice(animal_names)].get_gen_w2())
             new_animal.set_gen_wd(self.__population[np.random.choice(animal_names)].get_gen_wd())
-            """
+            
             for rows in range(0, self.__genome_size):
                 new_animal.insert_gen_w1_row(
                     new_row=self.__population[np.random.choice(animal_names)].get_gen_w1()[rows, :],
@@ -684,7 +685,7 @@ if __name__ == "__main__":
     temp = temp.reshape(len(temp), 1)
 
     pop = GeneticAlgorithm(input_data=fuel, target_data=freq, max_hid=20, population_size=50)
-    pop.live(generations=100000, kill=0.8)
+    pop.live(generations=10000, kill=0.5)
     pop.print_population()
     network = pop.get_animal('nn0')
     net_result = network(fuel)
