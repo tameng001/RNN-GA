@@ -3,6 +3,7 @@ import pandas as pd
 import scipy.interpolate as interp
 import matplotlib.pyplot as plt
 import copy
+import pickle
 
 
 def change_matrix_size(matrix, newmat_rows, newmat_cols):
@@ -69,6 +70,12 @@ def show_color_matrix(matrix):
     plt.show()
 
 
+def load_model(path):
+    with open(path, 'rb') as input:
+        model = pickle.load(input)
+    return model
+
+
 class RNN:
     def __init__(self, structure=(1, 1, 1), delays=1, genome_size=10):
         """
@@ -85,7 +92,8 @@ class RNN:
         self.__out = structure[2]
         self.__del = delays
         self.__genome_size = genome_size
-        self.__info = {}
+        self.__name = 'rnn'
+
 
         self.__gen_w1 = np.random.uniform(low=-10, high=10, size=[genome_size, genome_size])
         self.__gen_w2 = np.random.uniform(low=-10, high=10, size=[genome_size, genome_size])
@@ -135,17 +143,12 @@ class RNN:
         """
         error = target_data - self(input_data)
         self.__fault = np.mean(np.abs(error))
-    """
-    def updates_weights(self):
 
-        Recalculate sizes and values of weights
-        :return: None
-
-        self.__w1 = change_matrix_size(self.__gen_w1, self.__hid, self.__inp + 1)
-        self.__w2 = change_matrix_size(self.__gen_w2, self.__out, self.__hid + 1)
-        self.__wd = change_tensor3d_size(self.__gen_wd, self.__del, self.__hid, self.__out)
-        self.__outdel = np.zeros([self.__del, self.__out, 1])
-        """
+    def save(self, name=None):
+        if name is None:
+            name = self.__name
+        with open('{}.pkl'.format(name), 'wb') as output:
+            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
 
     def updates_weights(self):
         """
@@ -155,8 +158,10 @@ class RNN:
         Меняет только для выходного слоя, т.к. что было в нейросети остаётся в нейросети и для обратной связи
         :return: None
         """
+        # Change weight matrix size for input layer
         self.__w1 = change_matrix_size(self.__gen_w1, self.__hid, self.__inp + 1)
 
+        # Change weight matrix size for output layer
         new_w2 = change_matrix_size(self.__gen_w2, self.__out, self.__hid + 1)
         w2_sum_new = new_w2.sum()
         w2_sum_old = self.__w2.sum()
@@ -172,6 +177,7 @@ class RNN:
         self.__w2 = new_w2
         chek_w2 = w2_sum_old - self.__w2.sum(axis=1)
 
+        # Change weight matrix size for hidden layer
         new_wd = change_tensor3d_size(self.__gen_wd, self.__del, self.__hid, self.__out)
         wd_sum_new = new_wd.sum()
         wd_sum_old = self.__wd.sum()
@@ -301,6 +307,8 @@ class RNN:
     def set_gen_wd(self, new_gen_wd):
         self.__gen_wd = new_gen_wd
 
+    def set_name(self, name): self.__name = name
+
     def get_inputs(self): return self.__inp
 
     def get_hid(self): return self.__hid
@@ -325,6 +333,8 @@ class RNN:
 
     def get_gen_wd(self): return self.__gen_wd
 
+    def get_name(self): return self.__name
+
     def show(self):
         """
         Print information about network's structure end weights
@@ -334,17 +344,10 @@ class RNN:
         print("Number of delays: {}".format(self.__del))
         print("Network fault: {}".format(self.__fault))
 
-    def display(self):
-        """
-        Display colored genome
-        :return:
-        """
-        pass
-
 
 class GeneticAlgorithm:
     def __init__(self, input_data, target_data, population_size=20, network_inputs=1, network_outputs=1,
-                 max_hid=100, max_delays=10, genome_size=10):
+                 max_hid=30, max_delays=10, genome_size=10):
         self.__input_data = input_data
         self.__target_data = target_data
 
@@ -355,6 +358,7 @@ class GeneticAlgorithm:
         self.__max_hid = max_hid
         self.__max_delays = max_delays
         self.__genome_size = genome_size
+        self.__name = 'population'
 
         for p in range(population_size):
             hidden_layer = int(np.random.uniform(1, max_hid, 1))
@@ -365,6 +369,13 @@ class GeneticAlgorithm:
         for animal in self.__population:
             # Calculating animal faults
             self.get_animal(animal).calculate_fault(input_data=input_data, target_data=target_data)
+            self.get_animal(animal).set_name(animal)
+
+    def save(self, name=None):
+        if name is None:
+            name = self.__name
+        with open('{}.pkl'.format(name), 'wb') as output:
+            pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
 
     def live(self, generations=10000, kill=0.25, max_fault=0.01):
         """
@@ -553,32 +564,6 @@ class GeneticAlgorithm:
             # new_animal.calculate_fault(self.__input_data, self.__target_data)
             self.__population['nn{}'.format(n)] = new_animal
 
-    """
-    def set_data(self, input_data, target_data):
-
-        !!!Isn't tested!!! Change input and target data with recalculating all neural network faults.
-        :param input_data: Data in the input of neural networks
-        :param target_data: Desired output of neural networks
-        :type input_data: numpy.array
-        :type target_data: numpy.array
-        :return: None
-
-        self.__input_data = input_data
-        self.__target_data = target_data
-
-        _, inp_cols = input_data.shape
-        _, tar_cols = target_data.shape
-
-        if self.__network_inputs != inp_cols:
-            for animal in self.__population:
-                self.get_animal(animal).set_inputs(new_inputs=inp_cols)
-
-        if self.__network_outputs != tar_cols:
-            for animal in self.__population:
-                self.get_animal(animal).set_outputs(new_outputs=tar_cols)
-
-        self.calculate_population_faults()
-    """
     def calculate_population_faults(self):
         """
         Calculating faults in overall population networks.
@@ -587,32 +572,7 @@ class GeneticAlgorithm:
         for animal in self.__population:
             self.__population[animal].calculate_fault(input_data=self.__input_data,
                                                       target_data=self.__target_data)
-    """
-    def set_population_size(self, new_population_size):
 
-        Change population size with adding new networks or deleting networks
-        in alphabetical order starting from the end.
-        :param new_population_size: New population size
-        :type new_population_size: int
-        :return: None
-        if new_population_size > self.__population_size:
-            #for p in range(start=self.__population_size, stop=new_population_size, step=1):
-            for p in np.arange(start=self.__population_size, stop=new_population_size, step=1, dtype=int):
-                hidden_layer = int(np.random.uniform(1, self.__max_hid, 1))
-                delays = int(np.random.uniform(1, self.__max_delays, 1))
-                self.__population['nn{}'.format(p)] = RNN(structure=(self.__network_inputs,
-                                                                     hidden_layer,
-                                                                     self.__network_outputs),
-                                                          delays=delays,
-                                                          genome_size=self.__genome_size)
-                self.get_animal('nn{}'.format(p)).calculate_fault(input_data=self.__input_data,
-                                                                  target_data=self.__target_data)
-        else:
-            for p in np.arange(start=self.__population_size-1, stop=new_population_size, step=-1, dtype=int):
-                del self.__population['nn{}'.format(p)]
-
-        self.__population_size = new_population_size
-    """
     def get_animal(self, name): return self.__population[name]
 
     def get_population(self): return self.__population
@@ -684,8 +644,10 @@ if __name__ == "__main__":
     freq = freq.reshape(len(freq), 1)
     temp = temp.reshape(len(temp), 1)
 
-    pop = GeneticAlgorithm(input_data=fuel, target_data=freq, max_hid=20, population_size=50)
-    pop.live(generations=10000, kill=0.5)
+    pop = GeneticAlgorithm(input_data=fuel, target_data=freq, population_size=50)
+    for i in range(100):
+        pop.live(generations=1000, kill=0.5)
+        pop.save()
     pop.print_population()
     network = pop.get_animal('nn0')
     net_result = network(fuel)
